@@ -32,7 +32,6 @@ const GamePage = () => {
 
   const animationFrameRef = useRef(null)
 
-  // Initialisation socketio
   useEffect(() => {
     socketRef.current = io("http://localhost:3001", { transports: ["websocket"] })
 
@@ -51,6 +50,7 @@ const GamePage = () => {
         setPlayerEliminated(true)
         setEliminationMessage("Vous avez été éliminé !")
       }
+
 
       setPlayers(updatedPlayers)
 
@@ -75,7 +75,6 @@ const GamePage = () => {
       }
     })
 
-    // Gesiton des joueurs qui quittent après la fin de la partie
     socketRef.current.on("playerLeftAfterGame", (data) => {
       console.log(`👋 Joueur parti après la fin: ${data.playerName} (${data.playerId})`)
 
@@ -137,7 +136,6 @@ const GamePage = () => {
     }
   }, [playerEliminated])
 
-  // Cooldown affichage
   useEffect(() => {
     if (lastShot === 0) return
 
@@ -188,7 +186,6 @@ const GamePage = () => {
     }
   }, [gameStarted, lastShot, gameOver, playerEliminated])
 
-  // Fonction pour rejoindre une partie
   const joinGame = () => {
     if (name.trim() !== "" && socketRef.current) {
       socketRef.current.emit("joinGame", name)
@@ -211,7 +208,6 @@ const GamePage = () => {
     }
   }
 
-  // retour sur la gome
   const quitGame = () => {
     if (socketRef.current) {
       socketRef.current.emit("leaveGame")
@@ -220,7 +216,6 @@ const GamePage = () => {
     }
   }
 
-  // Écran de fin de game
   const renderGameOver = () => {
     if (!gameOver || !winner) return null
 
@@ -242,7 +237,6 @@ const GamePage = () => {
     )
   }
 
-  // Rendu de l'indicateur de joueur éliminé
   const renderEliminatedOverlay = () => {
     if (!gameStarted || gameOver || !playerEliminated) return null
 
@@ -258,7 +252,6 @@ const GamePage = () => {
     )
   }
 
-  // Afficher le statut des joueurs (pour le débogage)
   const renderPlayerStatus = () => {
     if (!gameStarted) return null
 
@@ -277,7 +270,6 @@ const GamePage = () => {
     )
   }
 
-  // Jsplus ct pour quoi
   const renderEliminationMessage = () => {
     if (!eliminationMessage) return null
 
