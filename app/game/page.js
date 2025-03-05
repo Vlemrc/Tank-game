@@ -44,6 +44,8 @@ const GamePage = () => {
     socketRef.current.on("connect", () => {
       console.log("🔌 Connecté au serveur Socket.IO")
       setSocketReady(true)
+      // Stocker l'ID du socket dans window pour l'utiliser dans le composant Tank
+      window.socketId = socketRef.current.id
     })
 
     socketRef.current.on("playersUpdate", (updatedPlayers) => {
@@ -143,6 +145,8 @@ const GamePage = () => {
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect()
+        // Nettoyer l'ID du socket dans window
+        delete window.socketId
       }
     }
   }, [playerEliminated]) // Ajout de playerEliminated comme dépendance
@@ -152,7 +156,7 @@ const GamePage = () => {
     if (lastShot === 0) return
 
     const interval = setInterval(() => {
-      const remaining = Math.max(0, 1000 - (Date.now() - lastShot))
+      const remaining = Math.max(0, 500 - (Date.now() - lastShot))
       setCooldownTimer(remaining)
 
       if (remaining === 0) {
@@ -177,8 +181,7 @@ const GamePage = () => {
         const now = Date.now()
 
         // Vérification du cooldown côté client (pour feedback visuel)
-        if (now - lastShot < 1000) {
-          console.log("⏱️ Cooldown actif")
+        if (now - lastShot < 500) {
           return
         }
 
@@ -249,33 +252,15 @@ const GamePage = () => {
     if (!gameOver || !winner) return null
 
     return (
-      <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg shadow-lg text-center max-w-md">
-          <h2 className="text-2xl font-bold mb-4">Partie terminée !</h2>
-          <p className="text-xl mb-6">
+      <div className="absolute rounded-lg inset-0 flex flex-col items-center justify-center z-50">
+        <div className="bg-white flex flex-col p-6 rounded-lg shadow-lg text-center max-w-md">
+          <h2 className="text-2xl font-bold mb-4 text-black">Partie terminée !</h2>
+          <p className="text-xl text-black !mb-6">
             {winner.id === socketRef.current?.id ? "🏆 Vous avez gagné ! 🏆" : `🏆 ${winner.name} a gagné ! 🏆`}
           </p>
 
-          <h3 className="text-lg font-semibold mb-2">Résultats :</h3>
-          <ul className="mb-6">
-            {players.map((player) => (
-              <li key={player.id} className="mb-1">
-                {player.name} - {player.eliminated ? "Éliminé" : "Vainqueur"}
-                {player.id === socketRef.current?.id ? " (Vous)" : ""}
-              </li>
-            ))}
-          </ul>
-
-          {playerLeftMessage && (
-            <div className="mb-4 p-2 bg-yellow-100 text-yellow-800 rounded">{playerLeftMessage}</div>
-          )}
-
-          <div className="flex space-x-4 justify-center">
-            <button onClick={restartGame} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-              Retour au lobby
-            </button>
-
-            <button onClick={quitGame} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+          <div className="flex flex-row gap-4 justify-center">
+            <button onClick={quitGame} className="!p-2 !px-4 !rounded-md bg-green-900 text-white px-4 py-2 rounded hover:bg-green-950 transition-all">
               Quitter le jeu
             </button>
           </div>
@@ -289,11 +274,10 @@ const GamePage = () => {
     if (!gameStarted || gameOver || !playerEliminated) return null
 
     return (
-      <div className="absolute inset-0 bg-red-500 bg-opacity-30 flex items-center justify-center z-40">
-        <div className="bg-white p-4 rounded-lg shadow-lg text-center">
+      <div className="absolute inset-0 bg-red-900 rounded-lg bg-opacity-30 flex items-center justify-center z-40">
+        <div className="bg-white p-4 rounded-lg shadow-lg text-center flex flex-col items-center gap-4">
           <h2 className="text-xl font-bold text-red-600 mb-2">Vous avez été éliminé !</h2>
-          <p>Vous pouvez continuer à regarder la partie.</p>
-          <button onClick={quitGame} className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+          <button onClick={quitGame} className="!p-2 !px-4 !rounded-md bg-red-800 text-white px-4 py-2 rounded hover:bg-red-900 transition-all">
             Quitter le jeu
           </button>
         </div>
@@ -306,13 +290,13 @@ const GamePage = () => {
     if (!gameStarted) return null
 
     return (
-      <div className="absolute top-0 left-0 bg-white p-2 border">
-        <h3>Statut des joueurs:</h3>
+      <div className="fixed top-8 left-5 p-2">
+        <h3 className="font-indie text-2xl !mb-3">Statut des joueurs</h3>
         <ul>
           {players.map((player) => (
             <li key={player.id}>
-              {player.name}: {player.eliminated ? "Éliminé" : "En vie"}
-              {player.id === socketRef.current?.id ? " (Vous)" : ""}
+              <span className="font-indie text-xl">{player.name}</span> : {player.eliminated ? <span className="rainbow-text font-bold">Explosé</span> : "Menace"}
+              <span className="text-green-600 font-indie text-xl">{player.id === socketRef.current?.id ? " (Vous)" : ""}</span>
             </li>
           ))}
         </ul>
@@ -320,33 +304,30 @@ const GamePage = () => {
     )
   }
 
-  // Afficher les messages d'élimination
+  // Jsplus ct pour quoi
   const renderEliminationMessage = () => {
     if (!eliminationMessage) return null
 
-    return (
-      <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white p-2 rounded z-50">
-        {eliminationMessage}
-      </div>
-    )
+    return 
   }
 
   return (
-    <div>
+    <div className="h-full w-full flex items-center justify-center">
       {!gameStarted ? (
         !inLobby ? (
-          <div className="flex flex-col items-center justify-center h-screen">
+          <div className="flex flex-col items-center justify-center h-screen gap-4">
+            <h1 className="text-4xl absolute left-8 top-8">TANKS ARENA</h1>
             <h2 className="text-2xl mb-4">Rejoindre une partie</h2>
             <input
               type="text"
               placeholder="Votre nom"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="border p-2 mb-2 w-64"
+              className="border p-2 mb-2 w-64 rounded-md border-green-700"
             />
             <button
               onClick={joinGame}
-              className={`p-2 rounded ${socketReady ? "bg-blue-500 text-white" : "bg-gray-300 text-gray-600"}`}
+              className={`!p-2 !px-4 !rounded-md !bg-green-800 hover:!bg-green-900 !transition-all ${socketReady ? "bg-blue-500 text-white" : "bg-gray-300 text-gray-600"}`}
               disabled={!socketReady}
             >
               {socketReady ? "Rejoindre" : "Connexion en cours..."}
@@ -355,26 +336,29 @@ const GamePage = () => {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-screen">
-            <h2 className="text-2xl mb-4">Salle d'attente</h2>
-            <p>Joueurs connectés : {players.length} / 4</p>
-            <ul className="mb-4">
+            <h1 className="text-4xl absolute left-8 top-8">TANKS ARENA</h1>
+            <h2 className="text-2xl">Salle d'attente</h2>
+            <p className="text-sm !mb-3">Joueurs connectés : {players.length} / 4</p>
+            <ul className="!mb-4 flex flex-col items-center">
               {players.map((player) => (
-                <li key={player.id}>
+                <li key={player.id} className="font-indie text-xl">
                   {player.name} {player.id === socketRef.current?.id ? "(Vous)" : ""}
                 </li>
               ))}
             </ul>
 
             {countdown !== null ? (
-              <h3>La partie démarre dans {countdown}...</h3>
+              <div style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)'}} className="fixed top-1/2 left-1/2 -translate-1/2 text-white h-full w-full flex items-center justify-center z-50">
+                <h3 className="font-200 font-indie font-bold">{countdown}</h3>
+              </div>
             ) : (
-              <div className="flex flex-col space-y-4">
+              <div className="flex flex-row gap-4">
                 {players.length >= 2 && (
-                  <button onClick={startGame} className="bg-green-500 text-white p-2 rounded">
+                  <button onClick={startGame} className="!p-2 !px-4 !rounded-md bg-green-500 text-white p-2 rounded">
                     Lancer la partie
                   </button>
                 )}
-                <button onClick={quitGame} className="bg-red-500 text-white p-2 rounded">
+                <button onClick={quitGame} className="!p-2 !px-4 !rounded-md bg-red-500 text-white p-2 rounded">
                   Quitter le jeu
                 </button>
               </div>
@@ -393,18 +377,13 @@ const GamePage = () => {
           {/* Afficher les messages d'élimination */}
           {renderEliminationMessage()}
 
-          <div className="absolute top-0 right-0 bg-white p-2 border">
-            <h3>Contrôles:</h3>
-            <p>Flèches: déplacer le tank</p>
-            <p>Espace: tirer</p>
-            {cooldownTimer > 0 && (
-              <div className="mt-2">
-                <p className="text-red-500">Cooldown: {(cooldownTimer / 1000).toFixed(1)}s</p>
-              </div>
-            )}
+          <div className="fixed bottom-12 left-5 flex flex-col">
+            <h3 className="font-indie text-2xl">Contrôles</h3>
+            <p><span className="font-indie text-xl">Flèches</span> : Déplacer le tank</p>
+            <p><span className="font-indie text-xl">Espace</span> : Tirer</p>
             <button
               onClick={quitGame}
-              className="mt-4 bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600"
+              className="!p-2 !px-4 !rounded-md !mt-4 bg-green-800 hover:bg-green-900 transition-all text-white px-2 py-1 rounded text-sm"
             >
               Quitter
             </button>

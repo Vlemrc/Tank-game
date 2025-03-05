@@ -183,16 +183,16 @@ const updateProjectiles = () => {
 
     switch (projectile.direction) {
       case "up":
-        newPosition.y -= 0.2
+        newPosition.y -= 0.3
         break
       case "down":
-        newPosition.y += 0.2
+        newPosition.y += 0.3
         break
       case "left":
-        newPosition.x -= 0.2
+        newPosition.x -= 0.3
         break
       case "right":
-        newPosition.x += 0.2
+        newPosition.x += 0.3
         break
     }
 
@@ -251,7 +251,7 @@ const updateProjectiles = () => {
 }
 
 // Exécuter la mise à jour des projectiles plus fréquemment (toutes les 50ms)
-setInterval(updateProjectiles, 50)
+setInterval(updateProjectiles, 30)
 
 io.on("connection", (socket) => {
   console.log(`🟢 Un joueur s'est connecté : ${socket.id}`)
@@ -268,11 +268,13 @@ io.on("connection", (socket) => {
 
   socket.on("joinGame", (name) => {
     if (players.length < 4 && !gameInProgress && !gameEnded) {
+      // Modifier la structure des joueurs pour inclure la direction
       const newPlayer = {
         id: socket.id,
         name,
         position: spawnPositions[players.length], // Assigner une position unique
         eliminated: false,
+        direction: "up", // Direction par défaut: vers le haut
       }
       players.push(newPlayer)
       lastShot[socket.id] = 0 // Initialiser le temps du dernier tir
@@ -336,6 +338,7 @@ io.on("connection", (socket) => {
     handlePlayerLeave(socket.id)
   })
 
+  // Dans la gestion du mouvement, mettre à jour la direction
   socket.on("move", ({ direction }) => {
     if (!gameInProgress) return
 
@@ -349,7 +352,7 @@ io.on("connection", (socket) => {
 
     const player = players[playerIndex]
 
-    // Vérifier si le joueur est éliminé
+    // JE vérifie si le joueur est éliminé
     if (player.eliminated) {
       console.log(`⚠️ Le joueur ${socket.id} est éliminé et ne peut pas se déplacer`)
       return
@@ -357,32 +360,36 @@ io.on("connection", (socket) => {
 
     const oldPosition = { ...player.position }
 
-    // Mise à jour de la position en fonction de la direction
+    // Mise à jour la direction du joueur
     switch (direction) {
       case "ArrowUp":
+        player.direction = "up"
         if (player.position.y > 0) player.position.y -= 1
         break
       case "ArrowDown":
+        player.direction = "down"
         if (player.position.y < MAP_SIZE - 1) player.position.y += 1
         break
       case "ArrowLeft":
+        player.direction = "left"
         if (player.position.x > 0) player.position.x -= 1
         break
       case "ArrowRight":
+        player.direction = "right"
         if (player.position.x < MAP_SIZE - 1) player.position.x += 1
         break
     }
 
-    // Vérifier si la position a changé
+    // Je vérifie si la position a changé
     if (oldPosition.x !== player.position.x || oldPosition.y !== player.position.y) {
       console.log(
-        `🚚 ${socket.id} se déplace de (${oldPosition.x},${oldPosition.y}) à (${player.position.x},${player.position.y})`,
+        `🚚 ${socket.id} se déplace de (${oldPosition.x},${oldPosition.y}) à (${player.position.x},${player.position.y}) direction: ${player.direction}`,
       )
 
       // Mettre à jour le joueur dans le tableau
       players[playerIndex] = player
 
-      // Envoyer la mise à jour à tous les clients
+      // J'envoie la mise à jour à tous les clients
       io.emit("playersUpdate", players)
     } else {
       console.log(`⚠️ Mouvement impossible pour ${socket.id}`)
@@ -394,8 +401,8 @@ io.on("connection", (socket) => {
 
     const now = Date.now()
 
-    // Vérifier le cooldown (1 tir par seconde)
-    if (now - (lastShot[socket.id] || 0) < 1000) {
+    // Durée du cooldown entre les tirs
+    if (now - (lastShot[socket.id] || 0) < 500) {
       console.log(`⏱️ Cooldown actif pour ${socket.id}`)
       return
     }
@@ -405,7 +412,7 @@ io.on("connection", (socket) => {
 
     const player = players[playerIndex]
 
-    // Vérifier si le joueur est éliminé
+    // Je verifie si le joueur est éliminé
     if (player.eliminated) {
       console.log(`⚠️ Le joueur ${socket.id} est éliminé et ne peut pas tirer`)
       return
