@@ -26,32 +26,25 @@ const GamePage = () => {
   const [eliminationMessage, setEliminationMessage] = useState("")
   const [playerLeftMessage, setPlayerLeftMessage] = useState("")
 
-  // Référence pour stocker le socket
   const socketRef = useRef(null)
 
-  // Référence pour stocker la fonction handleKeyDown
   const keyHandlerRef = useRef(null)
 
-  // Référence pour l'animation frame
   const animationFrameRef = useRef(null)
 
-  // L'initiation de la connexion Socket.IO et la gestion des événements
+  // Initialisation socketio
   useEffect(() => {
-    // Initialiser le socket
     socketRef.current = io("http://localhost:3001", { transports: ["websocket"] })
 
-    // Configurer les écouteurs d'événements
     socketRef.current.on("connect", () => {
       console.log("🔌 Connecté au serveur Socket.IO")
       setSocketReady(true)
-      // Stocker l'ID du socket dans window pour l'utiliser dans le composant Tank
       window.socketId = socketRef.current.id
     })
 
     socketRef.current.on("playersUpdate", (updatedPlayers) => {
       console.log("📢 Mise à jour des joueurs reçue:", updatedPlayers)
 
-      // Vérifier si le joueur actuel est éliminé
       const currentPlayer = updatedPlayers.find((p) => p.id === socketRef.current?.id)
       if (currentPlayer && currentPlayer.eliminated && !playerEliminated) {
         console.log("💀 Vous avez été éliminé !")
@@ -61,7 +54,6 @@ const GamePage = () => {
 
       setPlayers(updatedPlayers)
 
-      // Extraire les positions des joueurs mis à jour
       const newPositions = updatedPlayers.reduce((acc, player) => {
         acc[player.id] = player.position
         return acc
@@ -74,25 +66,21 @@ const GamePage = () => {
     socketRef.current.on("playerEliminated", (data) => {
       console.log(`💀 Joueur éliminé: ${data.playerName} (${data.playerId})`)
 
-      // Si c'est le joueur actuel qui est éliminé
       if (data.playerId === socketRef.current?.id) {
         setPlayerEliminated(true)
         setEliminationMessage("Vous avez été éliminé !")
       } else {
-        // Afficher un message temporaire pour l'élimination d'un autre joueur
         setEliminationMessage(`${data.playerName} a été éliminé !`)
         setTimeout(() => setEliminationMessage(""), 3000)
       }
     })
 
-    // Nouvel événement pour gérer le départ d'un joueur après la fin de partie
+    // Gesiton des joueurs qui quittent après la fin de la partie
     socketRef.current.on("playerLeftAfterGame", (data) => {
       console.log(`👋 Joueur parti après la fin: ${data.playerName} (${data.playerId})`)
 
-      // Mettre à jour la liste des joueurs (le serveur l'a déjà fait, mais au cas où)
       setPlayers((prev) => prev.filter((p) => p.id !== data.playerId))
 
-      // Afficher un message temporaire
       setPlayerLeftMessage(`${data.playerName} a quitté la partie (${data.remainingPlayers} joueurs restants)`)
       setTimeout(() => setPlayerLeftMessage(""), 5000)
     })
@@ -141,17 +129,15 @@ const GamePage = () => {
       alert("Une partie est déjà en cours. Veuillez attendre la fin de la partie.")
     })
 
-    // Nettoyage à la fermeture du composant
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect()
-        // Nettoyer l'ID du socket dans window
         delete window.socketId
       }
     }
-  }, [playerEliminated]) // Ajout de playerEliminated comme dépendance
+  }, [playerEliminated])
 
-  // Effet pour mettre à jour le timer de cooldown
+  // Cooldown affichage
   useEffect(() => {
     if (lastShot === 0) return
 
@@ -167,9 +153,7 @@ const GamePage = () => {
     return () => clearInterval(interval)
   }, [lastShot])
 
-  // Gestion des événements clavier séparée, dépendant de gameStarted
   useEffect(() => {
-    // Définir la fonction de gestion des touches
     const handleKeyDown = (event) => {
       if (!gameStarted || !socketRef.current || gameOver || playerEliminated) return
 
@@ -180,7 +164,6 @@ const GamePage = () => {
         console.log("🔫 Tir demandé")
         const now = Date.now()
 
-        // Vérification du cooldown côté client (pour feedback visuel)
         if (now - lastShot < 500) {
           return
         }
@@ -190,16 +173,13 @@ const GamePage = () => {
       }
     }
 
-    // Stocker la référence pour le nettoyage
     keyHandlerRef.current = handleKeyDown
 
-    // Ajouter l'écouteur d'événement seulement si le jeu a démarré
     if (gameStarted && !gameOver && !playerEliminated) {
       console.log("🎮 Event keydown ajouté !")
       window.addEventListener("keydown", handleKeyDown)
     }
 
-    // Nettoyage
     return () => {
       if (keyHandlerRef.current) {
         console.log("⛔ Event keydown retiré !")
@@ -208,7 +188,7 @@ const GamePage = () => {
     }
   }, [gameStarted, lastShot, gameOver, playerEliminated])
 
-  // Fonction pour rejoindre la partie
+  // Fonction pour rejoindre une partie
   const joinGame = () => {
     if (name.trim() !== "" && socketRef.current) {
       socketRef.current.emit("joinGame", name)
@@ -219,35 +199,28 @@ const GamePage = () => {
     }
   }
 
-  // Fonction pour démarrer la partie (après la préparation)
   const startGame = () => {
     if (socketRef.current) {
       socketRef.current.emit("startGame")
     }
   }
 
-  // Fonction pour redémarrer la partie
   const restartGame = () => {
     if (socketRef.current) {
       socketRef.current.emit("restartGame")
     }
   }
 
-  // Fonction pour quitter la partie et retourner à l'accueil
+  // retour sur la gome
   const quitGame = () => {
     if (socketRef.current) {
-      // Informer le serveur que le joueur quitte la partie
       socketRef.current.emit("leaveGame")
-
-      // Déconnecter le socket
       socketRef.current.disconnect()
-
-      // Rediriger vers la page d'accueil
       router.push("/")
     }
   }
 
-  // Rendu de l'écran de fin de partie
+  // Écran de fin de game
   const renderGameOver = () => {
     if (!gameOver || !winner) return null
 
@@ -370,11 +343,7 @@ const GamePage = () => {
           <Map players={players} />
           <Projectile projectiles={projectiles} currentPlayerId={socketRef.current?.id} />
           <Tank positions={positions} players={players} />
-
-          {/* Afficher le statut des joueurs pour le débogage */}
           {renderPlayerStatus()}
-
-          {/* Afficher les messages d'élimination */}
           {renderEliminationMessage()}
 
           <div className="fixed bottom-12 left-5 flex flex-col">
@@ -388,11 +357,7 @@ const GamePage = () => {
               Quitter
             </button>
           </div>
-
-          {/* Afficher l'overlay pour les joueurs éliminés */}
           {renderEliminatedOverlay()}
-
-          {/* Afficher l'écran de fin de partie */}
           {renderGameOver()}
         </div>
       )}

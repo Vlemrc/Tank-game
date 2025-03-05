@@ -3,33 +3,30 @@
 import { useEffect, useState } from "react"
 
 const Projectile = ({ projectiles, currentPlayerId }) => {
-  // État local pour suivre les positions interpolées des projectiles
   const [interpolatedProjectiles, setInterpolatedProjectiles] = useState([])
 
-  // Effet pour mettre à jour les projectiles interpolés à chaque changement
   useEffect(() => {
     if (!projectiles || projectiles.length === 0) {
       setInterpolatedProjectiles([])
       return
     }
 
-    // Copier les projectiles pour l'interpolation
+
     setInterpolatedProjectiles(
       projectiles.map((p) => ({
         ...p,
-        // Convertir les positions en pixels pour le rendu
         renderX: p.position.x * 50,
         renderY: p.position.y * 50,
       })),
     )
   }, [projectiles])
 
-  // Si pas de projectiles, ne rien afficher
+
   if (!interpolatedProjectiles || interpolatedProjectiles.length === 0) {
     return null
   }
 
-  // Fonction pour obtenir la rotation en fonction de la direction
+
   const getRotation = (direction) => {
     switch (direction) {
       case "up":
@@ -45,15 +42,12 @@ const Projectile = ({ projectiles, currentPlayerId }) => {
     }
   }
 
-  // Fonction pour obtenir la couleur en fonction du propriétaire du projectile
-  const getProjectileColor = (projectile) => {
-    // Si c'est un tir du joueur actuel, utiliser violet
-    if (projectile.playerId === currentPlayerId) {
-      return "#8A2BE2" // Violet
-    }
 
-    // Sinon, c'est un tir adverse, utiliser rouge
-    return "#FF0000" // Rouge
+  const getProjectileColor = (projectile) => {
+    if (projectile.playerId === currentPlayerId) {
+      return "#8A2BE2"
+    }
+    return "#FF0000"
   }
 
   return (
@@ -66,16 +60,15 @@ const Projectile = ({ projectiles, currentPlayerId }) => {
             key={projectile.id}
             style={{
               position: "absolute",
-              top: `${projectile.renderY + 15}px`, // Centré verticalement
-              left: `${projectile.renderX + 15}px`, // Centré horizontalement
+              top: `${projectile.renderY + 15}px`,
+              left: `${projectile.renderX + 15}px`,
               width: "20px",
               height: "20px",
               zIndex: 9,
               transform: `rotate(${getRotation(projectile.direction)})`,
-              transition: "top 0.05s linear, left 0.05s linear", // Transition très courte pour un mouvement fluide
+              transition: "top 0.05s linear, left 0.05s linear", 
             }}
           >
-            {/* Corps du projectile avec effet de brillance */}
             <div
               style={{
                 position: "absolute",
@@ -89,7 +82,6 @@ const Projectile = ({ projectiles, currentPlayerId }) => {
               }}
             />
 
-            {/* Traînée du projectile */}
             <div
               style={{
                 position: "absolute",
@@ -103,7 +95,6 @@ const Projectile = ({ projectiles, currentPlayerId }) => {
               }}
             />
 
-            {/* Effet de particules */}
             <div
               style={{
                 position: "absolute",
@@ -120,7 +111,6 @@ const Projectile = ({ projectiles, currentPlayerId }) => {
         )
       })}
 
-      {/* Style pour l'animation de pulsation */}
       <style jsx>{`
         @keyframes pulse {
           0% { transform: scale(1); opacity: 0.8; }

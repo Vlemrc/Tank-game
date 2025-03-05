@@ -1,13 +1,10 @@
 const Tank = ({ positions, players }) => {
-  console.log("🟢 Positions des tanks :", positions) // Debug
-  console.log("🟢 Joueurs :", players) // Debug pour voir l'état des joueurs
 
   if (!positions || Object.keys(positions).length === 0) {
     console.log("⚠️ Aucune position de tank disponible")
     return null
   }
 
-  // Créer un mapping des IDs vers les joueurs
   const playerMap = {}
   if (players && players.length > 0) {
     players.forEach((player) => {
@@ -15,7 +12,6 @@ const Tank = ({ positions, players }) => {
     })
   }
 
-  // Filtrer les joueurs non éliminés
   const activePlayers = Object.keys(positions).filter((playerId) => {
     const player = playerMap[playerId]
     return player && !player.eliminated
@@ -23,7 +19,7 @@ const Tank = ({ positions, players }) => {
 
   console.log("🟢 Joueurs actifs:", activePlayers.length)
 
-  // Ajouter cette fonction pour obtenir la rotation en fonction de la direction
+  // Rotation du tank selon ou il va
   const getRotation = (direction) => {
     switch (direction) {
       case "up":
@@ -46,28 +42,24 @@ const Tank = ({ positions, players }) => {
         const player = playerMap[playerId]
         const playerName = player.name || "Joueur"
         const isCurrentPlayer = playerId === window.socketId
-
-        // Déterminer la couleur du tank en fonction du joueur
-        const tankColor = isCurrentPlayer ? "#8A2BE2" : "#FF0000" // Violet pour le joueur actuel, rouge pour les adversaires
+        const tankColor = isCurrentPlayer ? "#8A2BE2" : "#FF0000"
 
         console.log(`🚀 Affichage du tank ${playerName} à la position:`, position)
 
-        // Modifier le rendu du tank pour appliquer la rotation
         return (
           <div key={playerId} style={{ position: "absolute", top: 0, left: 0 }}>
-            {/* Le tank SVG */}
             <div
               style={{
                 position: "absolute",
-                top: `${position.y * 50}px`, // Chaque case fait 50px
+                top: `${position.y * 50}px`,
                 left: `${position.x * 50}px`,
                 width: "50px",
                 height: "50px",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                zIndex: 10, // S'assurer que les tanks sont au-dessus de la grille
-                transition: "all 0.2s ease-in-out", // Animation fluide lors des déplacements
+                zIndex: 10,
+                transition: "all 0.2s ease-in-out", 
               }}
             >
               <svg
@@ -75,8 +67,8 @@ const Tank = ({ positions, players }) => {
                 style={{
                   width: "40px",
                   height: "40px",
-                  transform: getRotation(player.direction), // Appliquer la rotation en fonction de la direction
-                  transition: "transform 0.2s ease-in-out", // Animation fluide pour la rotation
+                  transform: getRotation(player.direction), 
+                  transition: "transform 0.2s ease-in-out", 
                 }}
               >
                 <path
@@ -138,16 +130,15 @@ const Tank = ({ positions, players }) => {
               </svg>
             </div>
 
-            {/* Le pseudo au-dessus du tank */}
             <div
               style={{
                 position: "absolute",
-                top: `${position.y * 50 - 20}px`, // 20px au-dessus du tank
+                top: `${position.y * 50 - 20}px`,
                 left: `${position.x * 50}px`,
                 width: "50px",
                 textAlign: "center",
                 fontWeight: "bold",
-                color: isCurrentPlayer ? "#8A2BE2" : "#FF0000", // Même couleur que le tank
+                color: isCurrentPlayer ? "#8A2BE2" : "#FF0000",
                 backgroundColor: "rgba(255, 255, 255, 0.7)",
                 padding: "2px",
                 borderRadius: "3px",

@@ -5,11 +5,10 @@ const Map = ({ players }) => {
         display: "grid",
         gridTemplateColumns: "repeat(10, 50px)",
         gridTemplateRows: "repeat(10, 50px)",
-        position: "relative", // Affichage des tanks
+        position: "relative",
       }}
       className="rounded-lg"
     >
-      {/* J'affiche ma grille */}
       {Array.from({ length: 100 }).map((_, index) => (
         <div
           key={index}
