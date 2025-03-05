@@ -17,6 +17,11 @@ const GamePage = () => {
   const [lastShot, setLastShot] = useState(0)
   const [socketReady, setSocketReady] = useState(false)
   const [cooldownTimer, setCooldownTimer] = useState(0)
+  const [gameOver, setGameOver] = useState(false)
+  const [winner, setWinner] = useState(null)
+  const [gameResults, setGameResults] = useState(null)
+  const [playerEliminated, setPlayerEliminated] = useState(false)
+  const [eliminationMessage, setEliminationMessage] = useState("")
 
   // Référence pour stocker le socket
   const socketRef = useRef(null)
@@ -40,6 +45,15 @@ const GamePage = () => {
 
     socketRef.current.on("playersUpdate", (updatedPlayers) => {
       console.log("📢 Mise à jour des joueurs reçue:", updatedPlayers)
+
+      // Vérifier si le joueur actuel est éliminé
+      const currentPlayer = updatedPlayers.find((p) => p.id === socketRef.current?.id)
+      if (currentPlayer && currentPlayer.eliminated && !playerEliminated) {
+        console.log("💀 Vous avez été éliminé !")
+        setPlayerEliminated(true)
+        setEliminationMessage("Vous avez été éliminé !")
+      }
+
       setPlayers(updatedPlayers)
 
       // Extraire les positions des joueurs mis à jour
@@ -50,6 +64,20 @@ const GamePage = () => {
 
       console.log("🗺️ Nouvelles positions:", newPositions)
       setPositions(newPositions)
+    })
+
+    socketRef.current.on("playerEliminated", (data) => {
+      console.log(`💀 Joueur éliminé: ${data.playerName} (${data.playerId})`)
+
+      // Si c'est le joueur actuel qui est éliminé
+      if (data.playerId === socketRef.current?.id) {
+        setPlayerEliminated(true)
+        setEliminationMessage("Vous avez été éliminé !")
+      } else {
+        // Afficher un message temporaire pour l'élimination d'un autre joueur
+        setEliminationMessage(`${data.playerName} a été éliminé !`)
+        setTimeout(() => setEliminationMessage(""), 3000)
+      }
     })
 
     socketRef.current.on("projectilesUpdate", (updatedProjectiles) => {
@@ -64,6 +92,34 @@ const GamePage = () => {
     socketRef.current.on("startGame", () => {
       console.log("🎮 Démarrage du jeu!")
       setGameStarted(true)
+      setGameOver(false)
+      setWinner(null)
+      setGameResults(null)
+      setPlayerEliminated(false)
+      setEliminationMessage("")
+    })
+
+    socketRef.current.on("gameOver", (results) => {
+      console.log("🏆 Partie terminée !", results)
+      setGameOver(true)
+      setWinner(results.winner)
+      setGameResults(results)
+    })
+
+    socketRef.current.on("returnToLobby", (updatedPlayers) => {
+      console.log("🔄 Retour au lobby")
+      setGameStarted(false)
+      setGameOver(false)
+      setWinner(null)
+      setGameResults(null)
+      setPlayerEliminated(false)
+      setEliminationMessage("")
+      setInLobby(true)
+      setPlayers(updatedPlayers)
+    })
+
+    socketRef.current.on("gameInProgress", () => {
+      alert("Une partie est déjà en cours. Veuillez attendre la fin de la partie.")
     })
 
     // Nettoyage à la fermeture du composant
@@ -72,7 +128,7 @@ const GamePage = () => {
         socketRef.current.disconnect()
       }
     }
-  }, []) // Dépendances vides pour n'exécuter qu'une seule fois
+  }, [playerEliminated]) // Ajout de playerEliminated comme dépendance
 
   // Effet pour mettre à jour le timer de cooldown
   useEffect(() => {
@@ -94,7 +150,7 @@ const GamePage = () => {
   useEffect(() => {
     // Définir la fonction de gestion des touches
     const handleKeyDown = (event) => {
-      if (!gameStarted || !socketRef.current) return
+      if (!gameStarted || !socketRef.current || gameOver || playerEliminated) return
 
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
         console.log(`🔼 Touche pressée : ${event.key}`)
@@ -118,19 +174,19 @@ const GamePage = () => {
     keyHandlerRef.current = handleKeyDown
 
     // Ajouter l'écouteur d'événement seulement si le jeu a démarré
-    if (gameStarted) {
+    if (gameStarted && !gameOver && !playerEliminated) {
       console.log("🎮 Event keydown ajouté !")
       window.addEventListener("keydown", handleKeyDown)
     }
 
     // Nettoyage
     return () => {
-      if (gameStarted && keyHandlerRef.current) {
+      if (keyHandlerRef.current) {
         console.log("⛔ Event keydown retiré !")
         window.removeEventListener("keydown", keyHandlerRef.current)
       }
     }
-  }, [gameStarted, lastShot])
+  }, [gameStarted, lastShot, gameOver, playerEliminated])
 
   // Fonction pour rejoindre la partie
   const joinGame = () => {
@@ -148,6 +204,87 @@ const GamePage = () => {
     if (socketRef.current) {
       socketRef.current.emit("startGame")
     }
+  }
+
+  // Fonction pour redémarrer la partie
+  const restartGame = () => {
+    if (socketRef.current) {
+      socketRef.current.emit("restartGame")
+    }
+  }
+
+  // Rendu de l'écran de fin de partie
+  const renderGameOver = () => {
+    if (!gameOver || !winner) return null
+
+    return (
+      <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg shadow-lg text-center max-w-md">
+          <h2 className="text-2xl font-bold mb-4">Partie terminée !</h2>
+          <p className="text-xl mb-6">
+            {winner.id === socketRef.current?.id ? "🏆 Vous avez gagné ! 🏆" : `🏆 ${winner.name} a gagné ! 🏆`}
+          </p>
+
+          <h3 className="text-lg font-semibold mb-2">Résultats :</h3>
+          <ul className="mb-6">
+            {players.map((player) => (
+              <li key={player.id} className="mb-1">
+                {player.name} - {player.eliminated ? "Éliminé" : "Vainqueur"}
+                {player.id === socketRef.current?.id ? " (Vous)" : ""}
+              </li>
+            ))}
+          </ul>
+
+          <button onClick={restartGame} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            Retour au lobby
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Rendu de l'indicateur de joueur éliminé
+  const renderEliminatedOverlay = () => {
+    if (!gameStarted || gameOver || !playerEliminated) return null
+
+    return (
+      <div className="absolute inset-0 bg-red-500 bg-opacity-30 flex items-center justify-center z-40">
+        <div className="bg-white p-4 rounded-lg shadow-lg text-center">
+          <h2 className="text-xl font-bold text-red-600 mb-2">Vous avez été éliminé !</h2>
+          <p>Vous pouvez continuer à regarder la partie.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Afficher le statut des joueurs (pour le débogage)
+  const renderPlayerStatus = () => {
+    if (!gameStarted) return null
+
+    return (
+      <div className="absolute top-0 left-0 bg-white p-2 border">
+        <h3>Statut des joueurs:</h3>
+        <ul>
+          {players.map((player) => (
+            <li key={player.id}>
+              {player.name}: {player.eliminated ? "Éliminé" : "En vie"}
+              {player.id === socketRef.current?.id ? " (Vous)" : ""}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
+  // Afficher les messages d'élimination
+  const renderEliminationMessage = () => {
+    if (!eliminationMessage) return null
+
+    return (
+      <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white p-2 rounded z-50">
+        {eliminationMessage}
+      </div>
+    )
   }
 
   return (
@@ -178,7 +315,9 @@ const GamePage = () => {
             <p>Joueurs connectés : {players.length} / 4</p>
             <ul className="mb-4">
               {players.map((player) => (
-                <li key={player.id}>{player.name}</li>
+                <li key={player.id}>
+                  {player.name} {player.id === socketRef.current?.id ? "(Vous)" : ""}
+                </li>
               ))}
             </ul>
 
@@ -199,6 +338,12 @@ const GamePage = () => {
           <Projectile projectiles={projectiles} currentPlayerId={socketRef.current?.id} />
           <Tank positions={positions} players={players} />
 
+          {/* Afficher le statut des joueurs pour le débogage */}
+          {renderPlayerStatus()}
+
+          {/* Afficher les messages d'élimination */}
+          {renderEliminationMessage()}
+
           <div className="absolute top-0 right-0 bg-white p-2 border">
             <h3>Contrôles:</h3>
             <p>Flèches: déplacer le tank</p>
@@ -209,6 +354,12 @@ const GamePage = () => {
               </div>
             )}
           </div>
+
+          {/* Afficher l'overlay pour les joueurs éliminés */}
+          {renderEliminatedOverlay()}
+
+          {/* Afficher l'écran de fin de partie */}
+          {renderGameOver()}
         </div>
       )}
     </div>

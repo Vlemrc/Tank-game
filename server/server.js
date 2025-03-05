@@ -14,6 +14,8 @@ const MAP_SIZE = 10
 let players = []
 let projectiles = []
 let projectileId = 0
+let gameInProgress = false
+let gameWinner = null
 
 // Fonction pour calculer la distance entre deux points
 const calculateDistance = (pos1, pos2) => {
@@ -26,7 +28,7 @@ const findClosestEnemy = (currentPlayer) => {
   let minDistance = Number.POSITIVE_INFINITY
 
   players.forEach((player) => {
-    if (player.id !== currentPlayer.id) {
+    if (player.id !== currentPlayer.id && !player.eliminated) {
       const distance = calculateDistance(currentPlayer.position, player.position)
       if (distance < minDistance) {
         minDistance = distance
@@ -52,8 +54,65 @@ const calculateDirection = (from, to) => {
   }
 }
 
+// Fonction pour vérifier si la partie est terminée
+const checkGameEnd = () => {
+  // Compter les joueurs encore en vie
+  const alivePlayers = players.filter((player) => !player.eliminated)
+
+  console.log(`🔍 Vérification fin de partie: ${alivePlayers.length} joueurs en vie sur ${players.length} total`)
+
+  // Si un seul joueur est en vie, c'est le gagnant
+  if (alivePlayers.length === 1 && players.length > 1) {
+    gameWinner = alivePlayers[0]
+    gameInProgress = false
+
+    // Annoncer le gagnant à tous les joueurs
+    io.emit("gameOver", {
+      winner: gameWinner,
+      players: players,
+    })
+
+    console.log(`🏆 Partie terminée ! Le gagnant est ${gameWinner.name}`)
+
+    // Réinitialiser les projectiles
+    projectiles = []
+    io.emit("projectilesUpdate", projectiles)
+
+    return true
+  }
+
+  return false
+}
+
+// Fonction pour éliminer un joueur
+const eliminatePlayer = (playerId) => {
+  const playerIndex = players.findIndex((p) => p.id === playerId)
+
+  if (playerIndex !== -1 && !players[playerIndex].eliminated) {
+    // Marquer le joueur comme éliminé
+    players[playerIndex].eliminated = true
+    console.log(`☠️ Le joueur ${players[playerIndex].name} (${playerId}) a été éliminé !`)
+
+    // Envoyer la mise à jour des joueurs à tous les clients
+    io.emit("playersUpdate", players)
+
+    // Envoyer un événement spécifique pour l'élimination
+    io.emit("playerEliminated", {
+      playerId: playerId,
+      playerName: players[playerIndex].name,
+    })
+
+    // Vérifier si la partie est terminée
+    return checkGameEnd()
+  }
+
+  return false
+}
+
 // Nouvelle approche pour la mise à jour des projectiles
 const updateProjectiles = () => {
+  if (!gameInProgress || players.length < 2) return
+
   // Tableau pour stocker les projectiles à supprimer
   const projectilesToRemove = []
 
@@ -64,7 +123,7 @@ const updateProjectiles = () => {
 
     switch (projectile.direction) {
       case "up":
-        newPosition.y -= 0.2 // Déplacement plus petit pour un mouvement plus fluide
+        newPosition.y -= 0.2
         break
       case "down":
         newPosition.y += 0.2
@@ -84,25 +143,42 @@ const updateProjectiles = () => {
       return
     }
 
-    // Vérifier la collision avec un joueur (arrondir pour la détection de collision)
-    const roundedX = Math.round(newPosition.x)
-    const roundedY = Math.round(newPosition.y)
-
+    // Vérifier la collision avec un joueur
     let collision = false
+    let hitPlayerId = null
+
     players.forEach((player) => {
-      if (player.id !== projectile.playerId && player.position.x === roundedX && player.position.y === roundedY) {
+      // Ne pas vérifier les joueurs déjà éliminés
+      if (player.eliminated) return
+
+      // Ne pas vérifier le joueur qui a tiré
+      if (player.id === projectile.playerId) return
+
+      // Calculer la distance entre le projectile et le joueur
+      const distance = calculateDistance(newPosition, player.position)
+
+      // Si le projectile est suffisamment proche du joueur (dans un rayon de 0.7 unité)
+      if (distance < 0.7) {
         collision = true
-        console.log(`💥 Projectile ${projectile.id} a touché le joueur ${player.id}`)
+        hitPlayerId = player.id
+        console.log(
+          `💥 Projectile ${projectile.id} a touché le joueur ${player.id} (${player.name}) à distance ${distance}`,
+        )
       }
     })
 
     if (collision) {
+      // Marquer le projectile pour suppression
       projectilesToRemove.push(projectile.id)
-      return
-    }
 
-    // Mettre à jour la position du projectile
-    projectile.position = newPosition
+      // Éliminer le joueur touché
+      if (hitPlayerId) {
+        eliminatePlayer(hitPlayerId)
+      }
+    } else {
+      // Mettre à jour la position du projectile
+      projectile.position = newPosition
+    }
   })
 
   // Supprimer les projectiles qui ont touché quelque chose
@@ -131,11 +207,12 @@ io.on("connection", (socket) => {
   const lastShot = {}
 
   socket.on("joinGame", (name) => {
-    if (players.length < 4) {
+    if (players.length < 4 && !gameInProgress) {
       const newPlayer = {
         id: socket.id,
         name,
         position: spawnPositions[players.length], // Assigner une position unique
+        eliminated: false,
       }
       players.push(newPlayer)
       lastShot[socket.id] = 0 // Initialiser le temps du dernier tir
@@ -143,26 +220,59 @@ io.on("connection", (socket) => {
 
       io.emit("playersUpdate", players)
       socket.emit("projectilesUpdate", projectiles) // Envoyer les projectiles existants au nouveau joueur
+    } else if (gameInProgress) {
+      // Informer le joueur que la partie est déjà en cours
+      socket.emit("gameInProgress")
     }
   })
 
   socket.on("startGame", () => {
-    console.log("🎮 Démarrage de la partie demandé")
+    if (players.length >= 2 && !gameInProgress) {
+      console.log("🎮 Démarrage de la partie demandé")
 
-    // Compte à rebours optionnel
-    let count = 3
-    const countdownInterval = setInterval(() => {
-      io.emit("countdown", count)
-      count--
+      // Réinitialiser l'état du jeu
+      gameWinner = null
+      gameInProgress = true
+      projectiles = []
 
-      if (count < 0) {
-        clearInterval(countdownInterval)
-        io.emit("startGame")
-      }
-    }, 1000)
+      // Réinitialiser les joueurs éliminés
+      players.forEach((player) => {
+        player.eliminated = false
+      })
+
+      // Compte à rebours optionnel
+      let count = 3
+      const countdownInterval = setInterval(() => {
+        io.emit("countdown", count)
+        count--
+
+        if (count < 0) {
+          clearInterval(countdownInterval)
+          io.emit("startGame")
+        }
+      }, 1000)
+    }
+  })
+
+  socket.on("restartGame", () => {
+    // Réinitialiser l'état du jeu
+    gameWinner = null
+    gameInProgress = false
+    projectiles = []
+
+    // Réinitialiser les positions des joueurs
+    players.forEach((player, index) => {
+      player.position = spawnPositions[index % 4]
+      player.eliminated = false
+    })
+
+    // Informer tous les joueurs du retour au lobby
+    io.emit("returnToLobby", players)
   })
 
   socket.on("move", ({ direction }) => {
+    if (!gameInProgress) return
+
     console.log(`🎮 Mouvement reçu de ${socket.id}: ${direction}`)
 
     const playerIndex = players.findIndex((p) => p.id === socket.id)
@@ -172,6 +282,13 @@ io.on("connection", (socket) => {
     }
 
     const player = players[playerIndex]
+
+    // Vérifier si le joueur est éliminé
+    if (player.eliminated) {
+      console.log(`⚠️ Le joueur ${socket.id} est éliminé et ne peut pas se déplacer`)
+      return
+    }
+
     const oldPosition = { ...player.position }
 
     // Mise à jour de la position en fonction de la direction
@@ -207,6 +324,8 @@ io.on("connection", (socket) => {
   })
 
   socket.on("shoot", () => {
+    if (!gameInProgress) return
+
     const now = Date.now()
 
     // Vérifier le cooldown (1 tir par seconde)
@@ -219,6 +338,13 @@ io.on("connection", (socket) => {
     if (playerIndex === -1) return
 
     const player = players[playerIndex]
+
+    // Vérifier si le joueur est éliminé
+    if (player.eliminated) {
+      console.log(`⚠️ Le joueur ${socket.id} est éliminé et ne peut pas tirer`)
+      return
+    }
+
     const closestEnemy = findClosestEnemy(player)
 
     if (!closestEnemy) {
@@ -255,9 +381,22 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log(`🔴 Un joueur s'est déconnecté : ${socket.id}`)
-    players = players.filter((player) => player.id !== socket.id)
+
+    // Vérifier si le joueur était dans la partie
+    const playerIndex = players.findIndex((p) => p.id === socket.id)
+
+    if (playerIndex !== -1) {
+      // Marquer le joueur comme éliminé s'il était dans la partie
+      if (gameInProgress) {
+        eliminatePlayer(socket.id)
+      } else {
+        // Supprimer le joueur s'il n'était pas dans une partie en cours
+        players = players.filter((player) => player.id !== socket.id)
+        io.emit("playersUpdate", players)
+      }
+    }
+
     delete lastShot[socket.id]
-    io.emit("playersUpdate", players)
   })
 })
 

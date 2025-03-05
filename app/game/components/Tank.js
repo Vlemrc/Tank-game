@@ -1,24 +1,35 @@
 const Tank = ({ positions, players }) => {
   console.log("🟢 Positions des tanks :", positions) // Debug
+  console.log("🟢 Joueurs :", players) // Debug pour voir l'état des joueurs
 
   if (!positions || Object.keys(positions).length === 0) {
     console.log("⚠️ Aucune position de tank disponible")
     return null
   }
 
-  // Créer un mapping des IDs vers les noms des joueurs
-  const playerNames = {}
+  // Créer un mapping des IDs vers les joueurs
+  const playerMap = {}
   if (players && players.length > 0) {
     players.forEach((player) => {
-      playerNames[player.id] = player.name
+      playerMap[player.id] = player
     })
   }
 
+  // Filtrer les joueurs non éliminés
+  const activePlayers = Object.keys(positions).filter((playerId) => {
+    const player = playerMap[playerId]
+    return player && !player.eliminated
+  })
+
+  console.log("🟢 Joueurs actifs:", activePlayers.length)
+
   return (
     <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-      {Object.keys(positions).map((playerId) => {
+      {activePlayers.map((playerId) => {
         const position = positions[playerId]
-        const playerName = playerNames[playerId] || "Joueur"
+        const player = playerMap[playerId]
+        const playerName = player.name || "Joueur"
+
         console.log(`🚀 Affichage du tank ${playerName} à la position:`, position)
 
         return (
