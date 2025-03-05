@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import io from "socket.io-client"
 import Map from "./components/Map"
 import Tank from "./components/Tank"
 import Projectile from "./components/Projectile"
 
 const GamePage = () => {
+  const router = useRouter()
   const [name, setName] = useState("")
   const [players, setPlayers] = useState([])
   const [gameStarted, setGameStarted] = useState(false)
@@ -22,6 +24,7 @@ const GamePage = () => {
   const [gameResults, setGameResults] = useState(null)
   const [playerEliminated, setPlayerEliminated] = useState(false)
   const [eliminationMessage, setEliminationMessage] = useState("")
+  const [playerLeftMessage, setPlayerLeftMessage] = useState("")
 
   // Référence pour stocker le socket
   const socketRef = useRef(null)
@@ -80,6 +83,18 @@ const GamePage = () => {
       }
     })
 
+    // Nouvel événement pour gérer le départ d'un joueur après la fin de partie
+    socketRef.current.on("playerLeftAfterGame", (data) => {
+      console.log(`👋 Joueur parti après la fin: ${data.playerName} (${data.playerId})`)
+
+      // Mettre à jour la liste des joueurs (le serveur l'a déjà fait, mais au cas où)
+      setPlayers((prev) => prev.filter((p) => p.id !== data.playerId))
+
+      // Afficher un message temporaire
+      setPlayerLeftMessage(`${data.playerName} a quitté la partie (${data.remainingPlayers} joueurs restants)`)
+      setTimeout(() => setPlayerLeftMessage(""), 5000)
+    })
+
     socketRef.current.on("projectilesUpdate", (updatedProjectiles) => {
       console.log("🔫 Mise à jour des projectiles reçue:", updatedProjectiles.length, "projectiles")
       setProjectiles(updatedProjectiles)
@@ -97,6 +112,7 @@ const GamePage = () => {
       setGameResults(null)
       setPlayerEliminated(false)
       setEliminationMessage("")
+      setPlayerLeftMessage("")
     })
 
     socketRef.current.on("gameOver", (results) => {
@@ -114,6 +130,7 @@ const GamePage = () => {
       setGameResults(null)
       setPlayerEliminated(false)
       setEliminationMessage("")
+      setPlayerLeftMessage("")
       setInLobby(true)
       setPlayers(updatedPlayers)
     })
@@ -213,6 +230,20 @@ const GamePage = () => {
     }
   }
 
+  // Fonction pour quitter la partie et retourner à l'accueil
+  const quitGame = () => {
+    if (socketRef.current) {
+      // Informer le serveur que le joueur quitte la partie
+      socketRef.current.emit("leaveGame")
+
+      // Déconnecter le socket
+      socketRef.current.disconnect()
+
+      // Rediriger vers la page d'accueil
+      router.push("/")
+    }
+  }
+
   // Rendu de l'écran de fin de partie
   const renderGameOver = () => {
     if (!gameOver || !winner) return null
@@ -235,9 +266,19 @@ const GamePage = () => {
             ))}
           </ul>
 
-          <button onClick={restartGame} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-            Retour au lobby
-          </button>
+          {playerLeftMessage && (
+            <div className="mb-4 p-2 bg-yellow-100 text-yellow-800 rounded">{playerLeftMessage}</div>
+          )}
+
+          <div className="flex space-x-4 justify-center">
+            <button onClick={restartGame} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+              Retour au lobby
+            </button>
+
+            <button onClick={quitGame} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+              Quitter le jeu
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -252,6 +293,9 @@ const GamePage = () => {
         <div className="bg-white p-4 rounded-lg shadow-lg text-center">
           <h2 className="text-xl font-bold text-red-600 mb-2">Vous avez été éliminé !</h2>
           <p>Vous pouvez continuer à regarder la partie.</p>
+          <button onClick={quitGame} className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+            Quitter le jeu
+          </button>
         </div>
       </div>
     )
@@ -324,11 +368,16 @@ const GamePage = () => {
             {countdown !== null ? (
               <h3>La partie démarre dans {countdown}...</h3>
             ) : (
-              players.length >= 2 && (
-                <button onClick={startGame} className="bg-green-500 text-white p-2 rounded">
-                  Lancer la partie
+              <div className="flex flex-col space-y-4">
+                {players.length >= 2 && (
+                  <button onClick={startGame} className="bg-green-500 text-white p-2 rounded">
+                    Lancer la partie
+                  </button>
+                )}
+                <button onClick={quitGame} className="bg-red-500 text-white p-2 rounded">
+                  Quitter le jeu
                 </button>
-              )
+              </div>
             )}
           </div>
         )
@@ -353,6 +402,12 @@ const GamePage = () => {
                 <p className="text-red-500">Cooldown: {(cooldownTimer / 1000).toFixed(1)}s</p>
               </div>
             )}
+            <button
+              onClick={quitGame}
+              className="mt-4 bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600"
+            >
+              Quitter
+            </button>
           </div>
 
           {/* Afficher l'overlay pour les joueurs éliminés */}

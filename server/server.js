@@ -16,6 +16,7 @@ let projectiles = []
 let projectileId = 0
 let gameInProgress = false
 let gameWinner = null
+let gameEnded = false // Nouvelle variable pour suivre si le jeu est terminé
 
 // Fonction pour calculer la distance entre deux points
 const calculateDistance = (pos1, pos2) => {
@@ -54,6 +55,37 @@ const calculateDirection = (from, to) => {
   }
 }
 
+// Fonction pour réinitialiser complètement la partie
+const resetGame = () => {
+  players = []
+  projectiles = []
+  gameInProgress = false
+  gameWinner = null
+  gameEnded = false
+  console.log("🔄 Réinitialisation complète du jeu")
+}
+
+// Fonction pour notifier les autres joueurs qu'un joueur a quitté après la fin de partie
+const notifyPlayerLeftAfterGame = (playerId, playerName) => {
+  console.log(`👋 Le joueur ${playerName} (${playerId}) a quitté après la fin de partie`)
+
+  // Informer les autres joueurs qu'un joueur a quitté
+  io.emit("playerLeftAfterGame", {
+    playerId: playerId,
+    playerName: playerName,
+    remainingPlayers: players.filter((p) => p.id !== playerId).length,
+  })
+
+  // Retirer le joueur de la liste
+  players = players.filter((p) => p.id !== playerId)
+
+  // Si tous les joueurs ont quitté, réinitialiser complètement le jeu
+  if (players.length === 0) {
+    console.log("🧹 Tous les joueurs ont quitté, réinitialisation du jeu")
+    resetGame()
+  }
+}
+
 // Fonction pour vérifier si la partie est terminée
 const checkGameEnd = () => {
   // Compter les joueurs encore en vie
@@ -65,6 +97,7 @@ const checkGameEnd = () => {
   if (alivePlayers.length === 1 && players.length > 1) {
     gameWinner = alivePlayers[0]
     gameInProgress = false
+    gameEnded = true // Marquer le jeu comme terminé
 
     // Annoncer le gagnant à tous les joueurs
     io.emit("gameOver", {
@@ -107,6 +140,33 @@ const eliminatePlayer = (playerId) => {
   }
 
   return false
+}
+
+// Fonction pour gérer le départ d'un joueur
+const handlePlayerLeave = (playerId) => {
+  const playerIndex = players.findIndex((p) => p.id === playerId)
+
+  if (playerIndex === -1) return
+
+  const playerName = players[playerIndex].name
+
+  // Si le jeu est terminé, notifier les autres joueurs
+  if (gameEnded) {
+    notifyPlayerLeftAfterGame(playerId, playerName)
+    return
+  }
+
+  // Si le jeu est en cours, éliminer le joueur
+  if (gameInProgress) {
+    eliminatePlayer(playerId)
+    return
+  }
+
+  // Si on est dans le lobby, simplement retirer le joueur
+  players = players.filter((p) => p.id !== playerId)
+  io.emit("playersUpdate", players)
+
+  console.log(`👋 Le joueur ${playerName} (${playerId}) a quitté la partie`)
 }
 
 // Nouvelle approche pour la mise à jour des projectiles
@@ -207,7 +267,7 @@ io.on("connection", (socket) => {
   const lastShot = {}
 
   socket.on("joinGame", (name) => {
-    if (players.length < 4 && !gameInProgress) {
+    if (players.length < 4 && !gameInProgress && !gameEnded) {
       const newPlayer = {
         id: socket.id,
         name,
@@ -220,19 +280,20 @@ io.on("connection", (socket) => {
 
       io.emit("playersUpdate", players)
       socket.emit("projectilesUpdate", projectiles) // Envoyer les projectiles existants au nouveau joueur
-    } else if (gameInProgress) {
-      // Informer le joueur que la partie est déjà en cours
+    } else if (gameInProgress || gameEnded) {
+      // Informer le joueur que la partie est déjà en cours ou terminée
       socket.emit("gameInProgress")
     }
   })
 
   socket.on("startGame", () => {
-    if (players.length >= 2 && !gameInProgress) {
+    if (players.length >= 2 && !gameInProgress && !gameEnded) {
       console.log("🎮 Démarrage de la partie demandé")
 
       // Réinitialiser l'état du jeu
       gameWinner = null
       gameInProgress = true
+      gameEnded = false
       projectiles = []
 
       // Réinitialiser les joueurs éliminés
@@ -258,6 +319,7 @@ io.on("connection", (socket) => {
     // Réinitialiser l'état du jeu
     gameWinner = null
     gameInProgress = false
+    gameEnded = false
     projectiles = []
 
     // Réinitialiser les positions des joueurs
@@ -268,6 +330,10 @@ io.on("connection", (socket) => {
 
     // Informer tous les joueurs du retour au lobby
     io.emit("returnToLobby", players)
+  })
+
+  socket.on("leaveGame", () => {
+    handlePlayerLeave(socket.id)
   })
 
   socket.on("move", ({ direction }) => {
@@ -382,19 +448,8 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log(`🔴 Un joueur s'est déconnecté : ${socket.id}`)
 
-    // Vérifier si le joueur était dans la partie
-    const playerIndex = players.findIndex((p) => p.id === socket.id)
-
-    if (playerIndex !== -1) {
-      // Marquer le joueur comme éliminé s'il était dans la partie
-      if (gameInProgress) {
-        eliminatePlayer(socket.id)
-      } else {
-        // Supprimer le joueur s'il n'était pas dans une partie en cours
-        players = players.filter((player) => player.id !== socket.id)
-        io.emit("playersUpdate", players)
-      }
-    }
+    // Utiliser la fonction de gestion du départ d'un joueur
+    handlePlayerLeave(socket.id)
 
     delete lastShot[socket.id]
   })
