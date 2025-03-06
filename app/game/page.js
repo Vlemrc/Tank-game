@@ -33,7 +33,7 @@ const GamePage = () => {
   const animationFrameRef = useRef(null)
 
   useEffect(() => {
-    socketRef.current = io("http://localhost:3001", { transports: ["websocket"] })
+    socketRef.current = io("https://tank-game-wnq4.onrender.com", { transports: ["websocket"] })
 
     socketRef.current.on("connect", () => {
       console.log("🔌 Connecté au serveur Socket.IO")
