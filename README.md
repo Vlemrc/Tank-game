@@ -1,37 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 Tank Battle - Jeu Multijoueur en Next.js
 
-## Getting Started
+Tank Battle est un jeu multijoueur en ligne où des tanks s'affrontent sur une carte 10x10 avec des projectiles qui rebondissent. Il est développé avec **Next.js**, **Socket.IO** et **WebRTC** pour la communication entre les joueurs.
 
-First, run the development server:
+---
+
+## 📌 Fonctionnalités
+
+- 🎮 **Multijoueur en temps réel** avec **Socket.IO**
+- 🗺️ **Carte de 10x10 cases** générée aléatoirement
+- 🎯 **Dernier survivant gagne la partie**
+
+---
+
+## 🛠️ Technologies Utilisées
+
+- **Next.js** (App Router)
+- **Socket.IO** (communication en temps réel)
+- **WebRTC** (connexion P2P entre joueurs)
+
+---
+
+## 🚀 Installation
+
+### 1️⃣ Prérequis
+
+- Node.js
+- npm ou yarn
+
+### 2️⃣ Cloner le projet
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+ git clone https://github.com/ton-repo/tank-battle.git
+ cd tank-battle
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3️⃣ Installer les dépendances
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+ npm install # ou yarn install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4️⃣ Lancer le serveur Next.js
 
-## Learn More
+```bash
+ npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 5️⃣ Lancer le serveur WebSocket (Backend Node.js)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Dans un autre terminal :
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+ cd server
+ npm install  # Installer les dépendances du backend
+ node server/server.js
+```
 
-## Deploy on Vercel
+Le serveur tourne maintenant sur **http://localhost:3000** et le WebSocket sur **http://localhost:3001**.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# Tank-game
+## 🎮 Comment Jouer ?
+
+1. Ouvrir **http://localhost:3000**
+2. Entrer un **pseudo** et cliquer sur "Rejoindre"
+3. Attendre que minimum **1 à 3 joueurs rejoignent**
+4. Appuyer sur **"Lancer la partie"**
+5. Utiliser les flèches du clavier pour **se déplacer**
+6. **Espace** pour tirer
+7. Survivre et éliminer les autres !
+
+---
+
+## 📌 Améliorations Futures
+
+- 🔊 Ajout des effets sonores
+- 🏆 Classement des joueurs (système de score)
+- 🎨 Amélioration des graphismes et animations
+
+---
+
+## 🏆 Crédit
+
+**Développé par :** Antony Dos Santos & Victor Lemercier
