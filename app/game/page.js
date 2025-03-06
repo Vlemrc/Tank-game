@@ -33,7 +33,8 @@ const GamePage = () => {
   const animationFrameRef = useRef(null)
 
   useEffect(() => {
-    socketRef.current = io("http://10.217.162.43:10000", { transports: ["websocket"] })
+    socketRef.current = io(window.location.origin, { transports: ["websocket"] });
+
 
     socketRef.current.on("connect", () => {
       console.log("🔌 Connecté au serveur Socket.IO")
