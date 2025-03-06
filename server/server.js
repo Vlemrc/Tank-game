@@ -383,7 +383,10 @@ io.on("connection", (socket) => {
   })
 })
 
-server.listen(3001, () => {
-  console.log("🚀 Serveur Socket.IO lancé sur http://localhost:3001")
-})
+const PORT = process.env.PORT || 3001; 
+
+server.listen(PORT, () => {
+  console.log(`🚀 Serveur Socket.IO lancé sur http://localhost:${PORT}`);
+});
+
 
