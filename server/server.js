@@ -78,30 +78,59 @@ const notifyPlayerLeftAfterGame = (playerId, playerName) => {
   }
 }
 
-const checkGameEnd = () => {
-  const alivePlayers = players.filter((player) => !player.eliminated)
+// const checkGameEnd = () => {
+//   const alivePlayers = players.filter((player) => !player.eliminated)
 
-  console.log(`🔍 Vérification fin de partie: ${alivePlayers.length} joueurs en vie sur ${players.length} total`)
+//   console.log(`🔍 Vérification fin de partie: ${alivePlayers.length} joueurs en vie sur ${players.length} total`)
+
+//   if (alivePlayers.length === 1 && players.length > 1) {
+//     gameWinner = alivePlayers[0]
+//     gameInProgress = false
+//     gameEnded = true
+
+//     io.emit("gameOver", {
+//       winner: gameWinner,
+//       players: players,
+//     })
+
+//     console.log(`🏆 Partie terminée ! Le gagnant est ${gameWinner.name}`)
+//     projectiles = []
+//     io.emit("projectilesUpdate", projectiles)
+
+//     return true
+//   }
+
+//   return false
+// }
+const checkGameEnd = () => {
+  const alivePlayers = players.filter((player) => !player.eliminated);
+
+  console.log(`🔍 Vérification fin de partie: ${alivePlayers.length} joueurs en vie sur ${players.length} total`);
 
   if (alivePlayers.length === 1 && players.length > 1) {
-    gameWinner = alivePlayers[0]
-    gameInProgress = false
-    gameEnded = true
+    gameWinner = alivePlayers[0];
+    gameInProgress = false;
+    gameEnded = true;
 
     io.emit("gameOver", {
       winner: gameWinner,
       players: players,
-    })
+    });
 
-    console.log(`🏆 Partie terminée ! Le gagnant est ${gameWinner.name}`)
-    projectiles = []
-    io.emit("projectilesUpdate", projectiles)
+    console.log(`🏆 Partie terminée ! Le gagnant est ${gameWinner.name}`);
+    projectiles = [];
+    io.emit("projectilesUpdate", projectiles);
 
-    return true
+    setTimeout(() => {
+      console.log("🔄 Réinitialisation automatique du jeu après la fin de partie");
+      resetGame();
+      io.emit("returnToLobby");
+    }, 5000); 
+
+    return true;
   }
-
-  return false
-}
+  return false;
+};
 
 const eliminatePlayer = (playerId) => {
   const playerIndex = players.findIndex((p) => p.id === playerId)
