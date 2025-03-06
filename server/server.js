@@ -7,8 +7,10 @@ const server = http.createServer(app)
 const io = new Server(server, {
   cors: {
     origin: "*",
-  },
-})
+    methods: ["GET", "POST"]
+  }
+});
+
 
 const MAP_SIZE = 10
 let players = []
@@ -298,7 +300,6 @@ io.on("connection", (socket) => {
 
     const player = players[playerIndex]
 
-    // Je vérifie si le joueur est éliminé
     if (player.eliminated) {
       console.log(`⚠️ Le joueur ${socket.id} est éliminé et ne peut pas se déplacer`)
       return
@@ -306,7 +307,6 @@ io.on("connection", (socket) => {
 
     const oldPosition = { ...player.position }
 
-    // Touches de déplacement du joueur
     switch (direction) {
       case "ArrowUp":
         player.direction = "up"
