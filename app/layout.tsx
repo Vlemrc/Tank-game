@@ -34,6 +34,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <div className="fixed bottom-3 left-1/2 -translate-x-1/2 text-sm font-indie">Anthony Dos Santos © Victor Lemercier</div>
       </body>
     </html>
   );
