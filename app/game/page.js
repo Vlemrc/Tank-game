@@ -35,7 +35,6 @@ const GamePage = () => {
   useEffect(() => {
     socketRef.current = io("https://tank-game-backend.onrender.com", { transports: ["websocket"] });
 
-
     socketRef.current.on("connect", () => {
       console.log("🔌 Connecté au serveur Socket.IO")
       setSocketReady(true)
@@ -110,6 +109,7 @@ const GamePage = () => {
       setGameOver(true)
       setWinner(results.winner)
       setGameResults(results)
+      setPlayers([])
     })
 
     socketRef.current.on("returnToLobby", (updatedPlayers) => {
@@ -123,6 +123,7 @@ const GamePage = () => {
       setPlayerLeftMessage("")
       setInLobby(true)
       setPlayers(updatedPlayers)
+      setPlayers([])
     })
 
     socketRef.current.on("gameInProgress", () => {
@@ -206,6 +207,10 @@ const GamePage = () => {
   const restartGame = () => {
     if (socketRef.current) {
       socketRef.current.emit("restartGame")
+      setPlayers([]) 
+      setGameStarted(false)
+      setGameOver(false)
+      setWinner(null)
     }
   }
 
